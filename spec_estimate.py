@@ -24,7 +24,7 @@ lw1 = 2
 b, a = sp.signal.butter(2, 1./30,btype='lowpass')
 
 ## data
-iz = 0    # vertical level [m]
+iz = 50    # vertical level [m]
 fni = 'subsets/'+str(iz)+'m_uvwts_high_90_919_768.npz'
 data = np.load(fni)
 
@@ -36,12 +36,12 @@ lon = data['lon'][:,4]
 u = data['u']
 v = data['v']
 
-du = np.diff(u,axis=2).sum(axis=2) == 0   # points where variable doesn't
+#du = np.diff(u,axis=2).sum(axis=2) == 0   # points where variable doesn't
                                           #   change over time
-dv = np.diff(v,axis=2).sum(axis=2) == 0
+#dv = np.diff(v,axis=2).sum(axis=2) == 0
 
-u[du,:] = np.nan
-v[dv,:] = np.nan
+#u[du,:] = np.nan
+#v[dv,:] = np.nan
 
 # for projection onto regular grid
 lati = np.linspace(lat.min(),lat.max(),lat.size)
@@ -61,6 +61,11 @@ V = interp_v(lati)[ilat,:,:]
 Uf = sp.signal.filtfilt(b, a, my.rmean(U), axis=2)
 Vf = sp.signal.filtfilt(b, a, my.rmean(V), axis=2)
 
+# sampled velocities
+#sampled_UV = np.load('UV_sampled.npz')
+#Us = sampled_UV['Us']
+#Vs = sampled_UV['Vs']
+
 ## spectral window
 
 # window for ft in space 
@@ -77,10 +82,12 @@ window_t = np.transpose(window_t,axes=(2,0,1))
 ## spectral estimates
 
 # in space (meridional wavenumber)
-Eu,k,dk,kNy = my.spec_est(my.rmean(U)*window_s,dx)
-Ev,_,_,_ = my.spec_est(my.rmean(V)*window_s,dx)
-Euf,_,_,_ = my.spec_est(Uf*window_s,dx)
-Evf,_,_,_ = my.spec_est(Vf*window_s,dx)
+Eu,k,dk,kNy = my.spec_est_meridional(my.rmean(U)*window_s,dx)
+Ev,_,_,_ = my.spec_est_meridional(my.rmean(V)*window_s,dx)
+Euf,_,_,_ = my.spec_est_meridional(Uf*window_s,dx)
+Evf,_,_,_ = my.spec_est_meridional(Vf*window_s,dx)
+#Eus,_,_,_ = my.spec_est_meridional(Us*window_s,dx)
+#Evs,_,_,_ = my.spec_est_meridional(Vs*window_s,dx)
 
 # in time
 dt = 1. # [h]
@@ -123,8 +130,11 @@ ax1 = fig.add_subplot(111)
 ix,jx = Eu.shape
 
 for i in range(jx):
-    ax1.loglog(k,Eu[:,i]*(10**i), color=color1, linewidth=lw1)
-    ax1.loglog(k,Ev[:,i]*(10**i), color=color2, linewidth=lw1)
+    if Eu[:,i].mask.sum() != ix:
+        ax1.loglog(k,Eu[:,i]*(10**i), color=color1, linewidth=lw1)
+        ax1.loglog(k,Ev[:,i]*(10**i), color=color2, linewidth=lw1)
+#    ax1.loglog(k,Eus[:,i]*(10**i), '--' ,color=color1, linewidth=lw1)
+#    ax1.loglog(k,Evs[:,i]*(10**i), '--' ,color=color2, linewidth=lw1)
 
 # reference slopes
 ax1.loglog(ks2,Es2,'--', color='k',linewidth=2.)
@@ -148,8 +158,9 @@ ax1 = fig.add_subplot(111)
 ix,jx = Eu.shape
 
 for i in range(jx):
-    ax1.loglog(k,Euf[:,i]*(10**i), color=color1, linewidth=lw1)
-    ax1.loglog(k,Evf[:,i]*(10**i), color=color2, linewidth=lw1)
+    if Euf[:,i].mask.sum() != ix:
+        ax1.loglog(k,Euf[:,i]*(10**i), color=color1, linewidth=lw1)
+        ax1.loglog(k,Evf[:,i]*(10**i), color=color2, linewidth=lw1)
 
 # reference slopes
 ax1.loglog(ks2,Es2,'--', color='k',linewidth=2.)
@@ -163,7 +174,6 @@ plt.text(0.084609544077146992, 1.3823722273578996,u'k$^{-3}$')
 plt.xlabel('Wavenumber [cycles/km]')
 plt.ylabel(u'Spectral density [(m$^{2}$ s$^{-2}$)/(cycles/km)] x $10^n$ ')
 plt.savefig('figs/spectra_lowpass_uv_'+str(iz)+'m')
-
 
 ## another view on the zonal wavenumber spec.
 fig = plt.figure(facecolor='w', figsize=(12.,8.5))
@@ -195,8 +205,9 @@ ax1 = fig.add_subplot(111)
 ix,jx = Eu.shape
 
 for i in range(jx):
-    ax1.loglog(f,Eu_t[i,:]*(10**i), color=color1, linewidth=lw1,alpha=.6)
-    ax1.loglog(f,Ev_t[i,:]*(10**i), color=color2, linewidth=lw1,alpha=.6)
+    if Eu[:,i].mask.sum() != ix:
+        ax1.loglog(f,Eu_t[i,:]*(10**i), color=color1, linewidth=lw1,alpha=.6)
+        ax1.loglog(f,Ev_t[i,:]*(10**i), color=color2, linewidth=lw1,alpha=.6)
 
 #ax1.axis((1./(1000),1./2,1.e-7,1.e9))
 
@@ -213,8 +224,9 @@ ax1 = fig.add_subplot(111)
 ix,jx = Eu.shape
  
 for i in range(jx):
-    ax1.loglog(f,Euf_t[i,:]*(10**i), color=color1, linewidth=lw1,alpha=.6)
-    ax1.loglog(f,Evf_t[i,:]*(10**i), color=color2, linewidth=lw1,alpha=.6)
+    if Euf[:,i].mask.sum() != ix: 
+        ax1.loglog(f,Euf_t[i,:]*(10**i), color=color1, linewidth=lw1,alpha=.6)
+        ax1.loglog(f,Evf_t[i,:]*(10**i), color=color2, linewidth=lw1,alpha=.6)
 
 #ax1.axis((1./(1000),1./2,1.e-7,1.e9))
 
@@ -244,4 +256,6 @@ Evf_l, Evf_u,_,_= my.spec_error(Evf, sn, .95)
 fno = 'outputs/spectra_'+str(iz)+'m'
 np.savez(fno, Eu=Eu, Ev=Ev, Eu_l=Eu_l,Eu_u=Eu_u, Ev_l=Ev_l,Ev_u=Ev_u, 
         k=k, r=r, rf = rf,Euf=Euf, Evf=Evf, Euf_l=Euf_l,Euf_u=Euf_u, Evf_l=Evf_l,Evf_u=Evf_u)
+
+
 
