@@ -11,7 +11,7 @@ def rmean(A):
     Am = Am.reshape(ix,jx,kx)
     return A-Am
 
-def spec_est(U,dx):
+def spec_est_meridional(U,dx):
     """ Computes 1d (meridional) spectral estimates of 3d llc_4320 fields"""
     ix,jx,kx = U.shape
     N = ix          # record length
@@ -20,6 +20,20 @@ def spec_est(U,dx):
     an = np.fft.fft(U,axis=0)
 
     an = an[1:N/2-1,:,:]
+    E = 2*(an*an.conj())/df/(N**2)  # spectral estimate
+    f = np.arange(1,N/2-1)*df
+
+    return E.mean(axis=2),f,df,fNy 
+
+def spec_est_zonal(U,dx):
+    """ Computes 1d (zonal) spectral estimates of 3d llc_4320 fields"""
+    ix,jx,kx = U.shape
+    N = jx          # record length
+    df = 1./(N*dx)  # frequency resolution [cycles / (unit time)]
+    fNy = 1./(2*dx) # Nyquist frequency
+    an = np.fft.fft(U,axis=1)
+
+    an = an[:,1:N/2-1,:]
     E = 2*(an*an.conj())/df/(N**2)  # spectral estimate
     f = np.arange(1,N/2-1)*df
 
@@ -87,7 +101,7 @@ def auto_corr(x):
     return a
 
 def fit_gauss(x,y):
-    """ Estimate characteristic scale of a auto-correlation funcation
+    """ Estimate characteristic scale of a auto-correlation function
             by fitting a Gaussian to auto_corr""" 
     y = np.matrix(np.log(y)).T
     A1 =  np .matrix(np.ones((x.size,1)))
@@ -107,5 +121,19 @@ def fit_gauss(x,y):
     yfit = np.exp( A*c )
 
     return Lfit
+
+def block_ave(dist,U,dx):
+    """ Block-averages the array u onto grid with resolution dx  """
+    ix,jx,kx = U.shape
+    disti = np.arange(dx/2.,dist[-1]+dx/2.,dx)
+    Ui = np.zeros((disti.size,jx,kx))
+    for i in range(0,disti.size):
+        fn = ((dist >= disti[i]-dx/2.) & (dist <= disti[i]+dx/2.))
+        fns = np.sum(fn)
+        if fns>0:
+            Ui[i,:,:] = np.nansum(U[fn,:,:],axis=0)/fns
+        else:
+            Ui[i,:,:] = np.nan
+    return Ui
 
 
