@@ -64,7 +64,7 @@ def spec_error(E,sn,ci):
     ## params
     dbin = .001
     yN = np.arange(0,5.+dbin,dbin)
-    dof = 2*sn # DOF = 2 x # of spectral estimates
+    dof = 2.*sn # DOF = 2 x # of spectral estimates
 
     ## PDF for E/E0, where E (E0) is the estimate (true) 
     ##  process spectrum (basically a chi^2 distribution)
@@ -87,6 +87,33 @@ def spec_error(E,sn,ci):
     Eu = E/yN[fu]
 
     return El, Eu, cdf_yN, pdf_yN
+
+# if sn larger than 150, assume it is normally-distributed (e.g., Bendat and Piersol) 
+def spec_error2(E,sn):
+    std_E = (1/np.sqrt(sn))
+    El = E/(1 + 2*std_E)
+    Eu = E/(1 - 2*std_E)
+    return El, Eu, std_E
+
+def spectral_slope(k,E,kmin,kmax,stdE):
+    ''' compute spectral slope in log space in
+        a wavenumber subrange [kmin,kmax],
+        m: spectral slope; mm: uncertainty'''
+
+    fr = np.where((k>=kmin)&(k<=kmax))
+
+    ki = np.matrix((np.log10(k[fr]))).T
+    Ei = np.matrix(np.log10(np.real(E[fr]))).T
+    dd = np.matrix(np.eye(ki.size)*((np.abs(np.log10(stdE)))**2))
+
+    G = np.matrix(np.append(np.ones((ki.size,1)),ki,axis=1))
+    Gg = ((G.T*G).I)*G.T
+    m = Gg*Ei
+    mm = np.sqrt(np.array(Gg*dd*Gg.T)[1,1])
+    yfit = np.array(G*m)
+    m = np.array(m)[1]
+
+    return m, mm
 
 def leg_width(lg,fs):
     """"  Sets the linewidth of each legend object """
